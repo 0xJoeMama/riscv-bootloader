@@ -1,18 +1,24 @@
+MEMORY 
+{
+  ROM (rx) : ORIGIN = 0x80000000, LENGTH = 256K
+  RAM (rw) : ORIGIN = 0x80000000 + 256K, LENGTH = 256K
+}
+
 SECTIONS
 {
-  . = 0x0;
-  .text :
+  .text : ALIGN(4096)
   {
+    bootloader.o(.text)
     *(.text)
-  }
-  
-  .data :
+  } > ROM
+
+  .data : ALIGN(4096)
   {
     *(.data)
-  }
+  } > RAM
 
-  . = 512K;
-  .magic : {
-    SHORT(0xAA55);
-  }
+  .bss : ALIGN(4096)
+  {
+    *(.bss)
+  } > RAM
 }
