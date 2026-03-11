@@ -1,7 +1,8 @@
 CROSS=riscv64-elf
 CC=$(CROSS)-gcc
-CFLAGS=-nostdlib -nodefaultlibs -nostdinc -nostartfiles -g3 -march=rv64i -mabi=lp64 -mcmodel=medany
-ASFLAGS=-march=rv64i -mabi=lp64
+ARCH=rv64g
+CFLAGS=-nostdlib -nodefaultlibs -nostdinc -nostartfiles -g3 -march=$(ARCH) -mabi=lp64 -mcmodel=medany
+ASFLAGS=-march=$(ARCH) -mabi=lp64
 AS=$(CROSS)-as
 LD=$(CROSS)-ld
 
