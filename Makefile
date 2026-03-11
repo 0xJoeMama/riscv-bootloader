@@ -1,20 +1,25 @@
-CC=riscv64-linux-gnu-gcc
+CROSS=riscv64-elf
+CC=$(CROSS)-gcc
 CFLAGS=-nostdlib -nodefaultlibs -nostdinc -nostartfiles
-AS=riscv64-linux-gnu-as
-LD=riscv64-linux-gnu-ld
+AS=$(CROSS)-as
+LD=$(CROSS)-ld
+OBJCOPY=$(CROSS)-objcopy
 
-LDFLAGS=-static
+LDFLAGS=-static  -Tlinker.ld
 
 all: kernel
 
-kernel: enter.o bootloader.o
+kernel.elf: enter.o bootloader.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 %.o: %.s
 	$(AS) -o $@ $^
 
+kernel: kernel.elf
+	$(OBJCOPY) -O binary $^ $@
+
 run: kernel
 	qemu-riscv64 ./kernel
 
 clean:
-	rm -rf *.o kernel
+	rm -rf *.o kernel kernel.elf
