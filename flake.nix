@@ -15,6 +15,8 @@
       packages = with pkgs; [
         coreboot-toolchain.riscv
         gnumake
+        qemu
+        gdb
       ];
     };
   };

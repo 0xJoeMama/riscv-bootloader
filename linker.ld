@@ -8,7 +8,7 @@ SECTIONS
 {
   .text : ALIGN(4096)
   {
-    bootloader.o(.text)
+    c_init.o(.text)
     *(.text)
   } > ROM
 

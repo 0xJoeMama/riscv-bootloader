@@ -1,4 +1,6 @@
-typedef unsigned long long u64;
+#include "fw_dynamic.h"
+#include "print.h"
+#include "types.h"
 
 #define SERIAL_ADDR ((char *)0x10000000LU)
 
@@ -8,20 +10,18 @@ void print_serial(const char *c) {
   }
 }
 
-__attribute__((noreturn)) extern void enter(u64 mhartid) {
-  char s[12] = {0};
-
-  u64 j = mhartid;
-  u64 i = 0;
-  do {
-    s[i++] = '0' + j % 10;
-    j /= 10;
-  } while (j);
-
+__attribute__((noreturn)) extern void enter(u64 mhartid, void *device_tree,
+                                            fw_dynamic_info *fwdi) {
   print_serial("Makis OS has been booted on hart ");
-  print_serial(s);
+  print_u64(mhartid, print_serial);
   print_serial("\n");
 
+  print_serial("Device tree located at ");
+  print_u64((u64)device_tree, print_serial);
+  print_serial("\n");
+
+  print_fwdi(fwdi, print_serial);
+
   while (1)
-    ;
+    __asm__ volatile("wfi");
 }
