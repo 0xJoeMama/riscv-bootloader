@@ -13,12 +13,12 @@ void print_serial(const char *c) {
   }
 }
 
-__attribute__((noreturn)) void spin(void) {
+never spin(void) {
   while (1)
     __asm__ volatile("wfi");
 }
 
-__attribute__((noreturn)) void panic(const char *s) {
+never panic(const char *s) {
   print_serial("PANIKK!!: ");
   print_serial(s);
   print_serial("\n");
@@ -45,6 +45,8 @@ enter(u64 mhartid, fdt_header *device_tree, fw_dynamic_info *fwdi) {
 
   fdt_reserve_entry *rsv_mem = get_reserved_mem(device_tree);
   print_mem_regions(rsv_mem, print_serial);
+  struct parsed_fdt parsed = print_device_tree(device_tree, print_serial);
 
+  *(u16*)(u64)(0x0000000000100000ULL) = 0x5555;
   spin();
 }
