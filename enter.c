@@ -1,4 +1,5 @@
 #include "assert.h"
+#include "atomic.h"
 #include "fdt.h"
 #include "fw_dynamic.h"
 #include "print.h"
@@ -7,7 +8,7 @@
 
 #define SERIAL_ADDR ((char *)0x10000000LU)
 
-void print_serial(const char *c) {
+static void print_serial(const char *c) {
   while (*c) {
     *SERIAL_ADDR = *c++;
   }
@@ -25,6 +26,16 @@ never panic(const char *s) {
 
   spin();
 }
+
+// the boot flag that blocks all CPUs except the boot CPU from initializing
+// themselves this is initially set to 1 boot CPU switches it atomically to 0
+// once initialization is done, it switches to 2 and all CPUs from now on are
+// expected to initialize themselves with the secondary method
+atomic_u64 boot = {1};
+
+void *cpu_stacks;
+
+static char stacks[4096 * 4];
 
 __attribute__((noreturn)) extern void
 enter(u64 mhartid, fdt_header *device_tree, fw_dynamic_info *fwdi) {
@@ -47,6 +58,22 @@ enter(u64 mhartid, fdt_header *device_tree, fw_dynamic_info *fwdi) {
   print_mem_regions(rsv_mem, print_serial);
   struct parsed_fdt parsed = print_device_tree(device_tree, print_serial);
 
-  *(u16*)(u64)(0x0000000000100000ULL) = 0x5555;
+  // TODO: here we need to allocate the CPU stacks on the physical memory that
+  // we parsed from the fdt, for now support at MOST 4 CPUs
+  cpu_stacks = stacks;
+  atomic_fence(); // keep a store fence here to avoid reordering
+
+  while (!atomic_u64_cmpxchg_aq_rl(&boot, 2, 0))
+    ;
+
+  spin();
+}
+
+__attribute__((noreturn)) extern void enter_secondary(u64 mhartid) {
+  print_serial("Hart ");
+  print_u64(mhartid, print_serial);
+  print_serial(" online!");
+  print_serial("\n");
+
   spin();
 }

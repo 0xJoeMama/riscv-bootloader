@@ -1,0 +1,18 @@
+#ifndef ATOMIC_H
+#define ATOMIC_H
+
+#include "types.h"
+
+#define atomic_int(type)                                                       \
+  typedef struct {                                                             \
+    type __underlying;                                                         \
+  } atomic_##type;                                                             \
+  type atomic_##type##_cmpxchg_aq_rl(atomic_##type *x, type set_to,            \
+                                     type expected)
+
+atomic_int(u32);
+atomic_int(u64);
+
+#define atomic_fence() asm __volatile__ ("fence") 
+
+#endif // ATOMIC_H
