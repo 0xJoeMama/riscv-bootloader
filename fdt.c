@@ -3,19 +3,19 @@
 #include "std.h"
 #include "string.h"
 
-void print_reserved_region(fdt_reserve_entry *e, sprinter print) {
-  hprint_u64(be_u64(e->address), print);
-  print("-");
-  hprint_u64(be_u64(e->address) + be_u64(e->size), print);
-  print("\n");
+void print_reserved_region(fdt_reserve_entry *e, sprinter *printer) {
+  hprint_u64(be_u64(e->address), printer);
+  print("-", printer);
+  hprint_u64(be_u64(e->address) + be_u64(e->size), printer);
+  print("\n", printer);
 }
 
-void print_mem_regions(fdt_reserve_entry *begin, sprinter print) {
-  print("Memory regions:\n");
+void print_mem_regions(fdt_reserve_entry *begin, sprinter *printer) {
+  print("Memory regions:\n", printer);
   while (be_u64(begin->address) || be_u64(begin->size))
-    print_reserved_region(begin++, print);
+    print_reserved_region(begin++, printer);
 
-  print("==============================\n");
+  print("==============================\n", printer);
 }
 
 fdt_reserve_entry *get_reserved_mem(fdt_header *h) {
@@ -29,7 +29,7 @@ static u32 chomp_be_u32(void **ptr) {
   return res;
 }
 
-struct parsed_fdt print_device_tree(fdt_header *hdr, sprinter print) {
+struct parsed_fdt print_device_tree(fdt_header *hdr, sprinter *printer) {
   u32 off_dt_struct = be_u32(hdr->off_dt_struct);
 
   void *ptr = ((char *)hdr + off_dt_struct);
@@ -45,9 +45,9 @@ struct parsed_fdt print_device_tree(fdt_header *hdr, sprinter print) {
     switch (type) {
     case FDT_BEGIN_NODE: {
       // ptr here contains the name of the device
-      print("Device Name: ");
-      print(ptr);
-      print("\n");
+      print("Device Name: ", printer);
+      print(ptr, printer);
+      print("\n", printer);
 
       if (streq(ptr, "poweroff")) {
         grabbing_poweroff = 1;
@@ -78,9 +78,9 @@ struct parsed_fdt print_device_tree(fdt_header *hdr, sprinter print) {
 
       char *property_name = strings + be_u32(fdt_data.nameoff);
 
-      print("--- ");
-      print(property_name);
-      print(": ");
+      print("--- ", printer);
+      print(property_name, printer);
+      print(": ", printer);
       u32 len = be_u32(fdt_data.len);
 
       u32 padded_len = (len & (-4)) + 4 * (len % 4 ? 1 : 0);
@@ -91,11 +91,11 @@ struct parsed_fdt print_device_tree(fdt_header *hdr, sprinter print) {
         res.poweroff_address = be_u32(*value);
 
       for (int i = 0; i < padded_len / 4; i++, value++) {
-        hprint_u32(be_u32(*value), print);
-        print(" ");
+        hprint_u32(be_u32(*value), printer);
+        print(" ", printer);
       }
 
-      print("\n");
+      print("\n", printer);
 
       ptr = (char *)ptr + padded_len;
     } break;
@@ -105,7 +105,7 @@ struct parsed_fdt print_device_tree(fdt_header *hdr, sprinter print) {
   }
 
 out:
-  print("<<<<-------->>>>\n");
+  print("<<<<-------->>>>\n", printer);
 
   return res;
 }

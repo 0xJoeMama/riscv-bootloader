@@ -1,9 +1,19 @@
 #include "print.h"
+#include "assert.h"
+#include "atomic.h"
 #include "types.h"
 
-#define MAX_U64_LEN 32
+print_result print(const char *s, sprinter *printer) {
+  if (!atomic_read(printer->prepared))
+    return (print_result){
+        .type = PRINT_UNPREPARED,
+    };
 
-void print_u64(u64 x, sprinter printer) {
+  printer->print(s);
+  return (print_result){.type = PRINT_OK};
+}
+
+print_result print_u64(u64 x, sprinter *printer) {
   char s[32] = {0};
 
   u64 i = 0;
@@ -21,10 +31,10 @@ void print_u64(u64 x, sprinter printer) {
   }
 
   // finally print
-  printer(s);
+  return print(s, printer);
 }
 
-void print_u32(u32 x, sprinter printer) {
+print_result print_u32(u32 x, sprinter *printer) {
   char s[13] = {0};
 
   u64 i = 0;
@@ -42,7 +52,7 @@ void print_u32(u32 x, sprinter printer) {
   }
 
   // finally print
-  printer(s);
+  return print(s, printer);
 }
 
 static char hex_digit(u64 x) {
@@ -63,7 +73,7 @@ static char hex_digit(u64 x) {
   }
 }
 
-void hprint_u64(u64 x, sprinter print) {
+print_result hprint_u64(u64 x, sprinter *printer) {
   u64 mask = 0xFFULL << 60;
 
   char s[64 / 4 + 1] = {0};
@@ -73,10 +83,10 @@ void hprint_u64(u64 x, sprinter print) {
     mask >>= 4;
   }
 
-  print(s);
+  return print(s, printer);
 }
 
-void hprint_u32(u32 x, sprinter print) {
+print_result hprint_u32(u32 x, sprinter *printer) {
   u32 mask = 0xF << 28;
 
   char s[32 / 4 + 1] = {0};
@@ -88,5 +98,33 @@ void hprint_u32(u32 x, sprinter print) {
     i++;
   }
 
-  print(s);
+  return print(s, printer);
+}
+
+int print_prepare(sprinter *printer) {
+  int res;
+  if ((res = printer->prepare(printer->arg)))
+    return res;
+
+  while (!atomic_u32_cmpxchg_aq_rl(&printer->prepared, 1, 0))
+    ;
+
+  atomic_fence();
+
+  return 0;
+}
+
+int print_flush(sprinter *printer) {
+  // TODO: instead of panicing on unprepared, please make sure you properly
+  // handle this
+  assert_eq(atomic_read(printer->prepared), 1);
+
+  int res;
+  printer->flush(printer->arg);
+
+  atomic_fence();
+  while (!atomic_u32_cmpxchg_aq_rl(&printer->prepared, 0, 1))
+    ;
+
+  return res;
 }

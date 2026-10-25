@@ -35,12 +35,12 @@ typedef struct fdt_reserve_entry {
 } fdt_reserve_entry;
 
 fdt_reserve_entry *get_reserved_mem(fdt_header *);
-void print_mem_regions(fdt_reserve_entry *begin, sprinter);
+void print_mem_regions(fdt_reserve_entry *begin, sprinter *);
 
 struct parsed_fdt {
   u32 poweroff_address;
 };
 
-struct parsed_fdt print_device_tree(fdt_header *, sprinter);
+struct parsed_fdt print_device_tree(fdt_header *, sprinter *);
 
 #endif // FDT_H

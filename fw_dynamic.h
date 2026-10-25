@@ -12,6 +12,6 @@ typedef struct {
   u64 options;
 } fw_dynamic_info;
 
-void print_fwdi(fw_dynamic_info *fwdi, sprinter printer);
+void print_fwdi(fw_dynamic_info *fwdi, sprinter *printer);
 
 #endif // FW_DYNAMIC_H
