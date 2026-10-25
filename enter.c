@@ -100,6 +100,12 @@ extern never enter(u64 mhartid, struct fdt_header *device_tree,
 extern never enter_secondary(u64 mhartid) {
   print_prepare(&serial);
 
+  // stack sanity check
+  u64 sp;
+  void *stack = &stacks[mhartid * 4096];
+  asm volatile("mv %0, sp " : "=r"(sp));
+  assert(sp >= (u64)stack && sp < (u64)stack + 4096);
+
   print("Hart ", &serial);
   print_u64(mhartid, &serial);
   print(" online!", &serial);

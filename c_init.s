@@ -44,7 +44,7 @@ secondary_setup_stack:
   # top of stack
   addi t1, a0, 1
   # in pages
-  slli t1, a0, 12
+  slli t1, t1, 12
   # offset from the beginning of cpu_stacks
   add sp, t0, t1
 
