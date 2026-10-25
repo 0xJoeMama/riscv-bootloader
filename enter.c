@@ -9,14 +9,14 @@
 
 never spin(void) {
   while (1)
-    __asm__ volatile("wfi");
+    asm __volatile__("wfi");
 }
 
 never panic(const char *s) {
   // TODO: this always assumes the serial printer is PREPARED
-  print("PANIKK!!: ", &serial);
-  print(s, &serial);
-  print("\n", &serial);
+  serial.print("PANIKK!!: ");
+  serial.print(s);
+  serial.print("\n");
 
   spin();
 }
@@ -26,16 +26,36 @@ never panic(const char *s) {
 // once initialization is done, it switches to 2 and all CPUs from now on are
 // expected to initialize themselves with the secondary method
 atomic_u64 boot = {1};
+atomic_u32 cpus_up = {0};
 
 void *cpu_stacks;
 
-static char stacks[4096 * 4];
+_Alignas(4096) static char stacks[4096 * 4];
+extern char stack[4096];
 
-__attribute__((noreturn)) extern void
-enter(u64 mhartid, fdt_header *device_tree, fw_dynamic_info *fwdi) {
+static void mem_init(struct memory *mem) {
+  if (!mem)
+    panic("Did not locate any usable memory regions");
+
+  for (struct memory *curr = mem; curr; curr = curr->next) {
+    print("Memory region starting at ", &serial);
+    hprint_u64((u64)curr->start - 4096, &serial);
+    print(" (length = ", &serial);
+    print_u64(curr->len / (1 << 20), &serial);
+    print("MB)\n", &serial);
+  }
+}
+
+extern never enter(u64 mhartid, struct fdt_header *device_tree,
+                   fw_dynamic_info *fwdi) {
   serial_init();
 
   print_prepare(&serial);
+
+  // stack sanity check
+  u64 sp;
+  asm volatile("mv %0, sp " : "=r"(sp));
+  assert(sp >= (u64)stack && sp < (u64)stack + 4096);
 
   print("Makis OS has been booted on hart ", &serial);
   print_u64(mhartid, &serial);
@@ -52,11 +72,16 @@ enter(u64 mhartid, fdt_header *device_tree, fw_dynamic_info *fwdi) {
 
   u32 tree_sz = be_u32(device_tree->totalsize);
 
-  fdt_reserve_entry *rsv_mem = get_reserved_mem(device_tree);
+  struct fdt_reserve_entry *rsv_mem = get_reserved_mem(device_tree);
   print_mem_regions(rsv_mem, &serial);
   struct parsed_fdt parsed = print_device_tree(device_tree, &serial);
 
+  mem_init(parsed.first_mem);
+
+  atomic_u32_add_aq_rl(&cpus_up, 1);
+
   print_flush(&serial);
+
   // TODO: here we need to allocate the CPU stacks on the physical memory that
   // we parsed from the fdt, for now support at MOST 4 CPUs
   cpu_stacks = stacks;
@@ -65,10 +90,14 @@ enter(u64 mhartid, fdt_header *device_tree, fw_dynamic_info *fwdi) {
   while (!atomic_u64_cmpxchg_aq_rl(&boot, 2, 0))
     ;
 
+  while (!atomic_u32_cmpxchg_aq_rl(&cpus_up, 0, 4))
+    ;
+
+  *(u16 *)(0x0000000000100000ULL) = 0x5555;
   spin();
 }
 
-__attribute__((noreturn)) extern void enter_secondary(u64 mhartid) {
+extern never enter_secondary(u64 mhartid) {
   print_prepare(&serial);
 
   print("Hart ", &serial);
@@ -77,6 +106,9 @@ __attribute__((noreturn)) extern void enter_secondary(u64 mhartid) {
   print("\n", &serial);
 
   print_flush(&serial);
+
+  atomic_u32_add_aq_rl(&cpus_up, 1);
+  atomic_fence();
 
   spin();
 }

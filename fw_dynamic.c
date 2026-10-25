@@ -3,7 +3,7 @@
 
 static void print_info_line(const char *desc, u64 info, sprinter *printer) {
   print(desc, printer);
-  print_u64(info, printer);
+  hprint_u64(info, printer);
   print("\n", printer);
 }
 

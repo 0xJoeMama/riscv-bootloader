@@ -4,7 +4,7 @@ assembler = "gas"
 instruction_set = "riscv"
 
 [default_config.opts]
-compiler = "riscv64-linux-gnu-gcc"
+compiler = "riscv64-elf-gcc"
 compile_flags_txt = []
 diagnostics = true
 default_diagnostics = true

@@ -7,7 +7,7 @@
 .extern cpu_stacks # stacks for alternate CPUs. Every CPU has a 4k entry into this stack. 
                    # we calculate using cpu_stacks + 4096 * mhartid
 
-.section .text
+.section .text.boot
 _start:
   # save ALL registers that will be used for the following function call
   mv s0, a0
@@ -29,16 +29,25 @@ _spin:
   bne t0, t1, _spin
 
 secondary_setup_stack:
-  la t0, cpu_stacks
-  csrr a0, mhartid
-  slli t1, a0, 12
-
   # annull the device tree information on secondary CPUs
   li s0, 0
   li s1, 0
   li s2, 0
 
+  # load cpu_stacks
+  la t0, cpu_stacks
+  ld t0, (t0)
+
+  # use hartid as index into stacks 
+  csrr a0, mhartid
+
+  # top of stack
+  addi t1, a0, 1
+  # in pages
+  slli t1, a0, 12
+  # offset from the beginning of cpu_stacks
   add sp, t0, t1
+
   call enter_secondary
 
 jump_to_c:
@@ -50,7 +59,11 @@ jump_to_c:
   # just setup a stack and jump to C
   # no more assembly needed
   la sp, stack
+  addi t0, zero, 1
+  slli t0, t0, 12
+  add sp, sp, t0
   call enter
 
 .section .data
+.global stack
 stack: .space 4096

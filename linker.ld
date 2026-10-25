@@ -1,24 +1,30 @@
-MEMORY 
-{
-  ROM (rx) : ORIGIN = 0x80000000, LENGTH = 256K
-  RAM (rw) : ORIGIN = 0x80000000 + 256K, LENGTH = 256K
-}
-
 SECTIONS
 {
+  /* start placing at 0x80000000 */
+  . = 0x80000000;
+  . = ALIGN(4096);
+
+  see_start = .;
+
   .text : ALIGN(4096)
   {
-    c_init.o(.text)
+    *(.text.boot)
     *(.text)
-  } > ROM
+  }
 
   .data : ALIGN(4096)
   {
     *(.data)
-  } > RAM
+    *(.sdata)
+    *(.rodata)
+  }
 
   .bss : ALIGN(4096)
   {
     *(.bss)
-  } > RAM
+    *(.sbss)
+  }
+  
+  . = ALIGN(4096);
+  see_end = .;
 }
