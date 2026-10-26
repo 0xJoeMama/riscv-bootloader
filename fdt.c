@@ -62,7 +62,7 @@ void fdt_goto_struct(struct fdt_header *hdr, fdt_ptr *ptr) {
 }
 
 static int is_see_in_region(void *ptr, usize len) {
-  char *start;
+  char *start = ptr;
   return see_start >= start && see_start < start + len;
 }
 

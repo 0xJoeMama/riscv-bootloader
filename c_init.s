@@ -21,11 +21,10 @@ _start:
 
   bnez a0, jump_to_c
 
-_spin:
   li t1, 2
   la a0, boot
+_spin:
   ld t0, 0(a0)
-
   bne t0, t1, _spin
 
 secondary_setup_stack:
