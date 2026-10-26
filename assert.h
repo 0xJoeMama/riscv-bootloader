@@ -3,12 +3,11 @@
 #define ASSERT_H
 
 #include "std.h"
-#define get_line2(s) #s
-#define get_line(s) get_line2(s)
+
 #define assert(x)                                                              \
-  (x                                                                           \
-       ?: panic("FAILED ASSERTION AT " __FILE__                                \
-                ":" get_line(__LINE__) " has failed spectacularly"))
+  ((x)                                                                         \
+       ?: panic("Failed assertion at function '%s' in %s:%U\n", __FUNCTION__,    \
+                __FILE__, __LINE__))
 
 #define assert_eq(a, b) assert((a) == (b))
 

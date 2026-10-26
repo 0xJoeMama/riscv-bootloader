@@ -9,15 +9,25 @@
 
 never spin(void) {
   while (1)
-    asm __volatile__("wfi");
+    asm volatile("wfi");
 }
 
-never panic(const char *s) {
-  // TODO: this always assumes the serial printer is PREPARED
-  serial.print("PANIKK!!: ");
-  serial.print(s);
-  serial.print("\n");
+never panic(const char *s, ...) {
+  __builtin_va_list va;
 
+  // this is the only case where emergency serial is used currently
+  // REMINDER: this bypasses all concurrency safety for the sake of giving *some
+  // sort* of response as to the state of the machine
+  print(&emergency_serial, "##################################################"
+                           "##################################\n");
+  printf(&emergency_serial, "PANIC! A failing state has been reached. Aborting "
+                            "execution before further mistakes...\n");
+  __builtin_va_start(va, s);
+  vprintf(&emergency_serial, s, &va);
+  __builtin_va_end(va);
+
+  print(&emergency_serial, "##################################################"
+                           "##################################\n");
   spin();
 }
 
@@ -37,19 +47,13 @@ static void mem_init(struct memory *mem) {
   if (!mem)
     panic("Did not locate any usable memory regions");
 
-  for (struct memory *curr = mem; curr; curr = curr->next) {
-    print("Memory region starting at ", &serial);
-    hprint_u64((u64)curr->start - 4096, &serial);
-    print(" (length = ", &serial);
-    print_u64(curr->len / (1 << 20), &serial);
-    print("MB)\n", &serial);
-  }
+  for (struct memory *curr = mem; curr; curr = curr->next)
+    printf(&serial, "Memory region starting at %p (length = %U MB %U kB)\n",
+           curr->start, curr->len >> 20, (curr->len & (1 << 20) - 1) >> 10);
 }
 
 extern never enter(u64 mhartid, struct fdt_header *device_tree,
                    fw_dynamic_info *fwdi) {
-  serial_init();
-
   print_prepare(&serial);
 
   // stack sanity check
@@ -57,15 +61,10 @@ extern never enter(u64 mhartid, struct fdt_header *device_tree,
   asm volatile("mv %0, sp " : "=r"(sp));
   assert(sp >= (u64)stack && sp < (u64)stack + 4096);
 
-  print("Makis OS has been booted on hart ", &serial);
-  print_u64(mhartid, &serial);
-  print("\n", &serial);
-
+  printf(&serial, "MakOS has been booted on hart %U\n", mhartid);
   print_fwdi(fwdi, &serial);
 
-  print("Device tree located at ", &serial);
-  hprint_u64((u64)device_tree, &serial);
-  print("\n", &serial);
+  printf(&serial, "Device tree located at %p\n", device_tree);
 
   assert_eq(be_u32(device_tree->magic), 0xd00dfeed);
   assert_eq(be_u32(device_tree->version), 17);
@@ -106,10 +105,7 @@ extern never enter_secondary(u64 mhartid) {
   asm volatile("mv %0, sp " : "=r"(sp));
   assert(sp >= (u64)stack && sp < (u64)stack + 4096);
 
-  print("Hart ", &serial);
-  print_u64(mhartid, &serial);
-  print(" online!", &serial);
-  print("\n", &serial);
+  printf(&serial, "Hart %U is now online\n", mhartid);
 
   print_flush(&serial);
 

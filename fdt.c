@@ -7,17 +7,17 @@
 
 void print_reserved_region(struct fdt_reserve_entry *e, sprinter *printer) {
   hprint_u64(be_u64(e->address), printer);
-  print("-", printer);
+  print(printer, "-");
   hprint_u64(be_u64(e->address) + be_u64(e->size), printer);
-  print("\n", printer);
+  print(printer, "\n");
 }
 
 void print_mem_regions(struct fdt_reserve_entry *begin, sprinter *printer) {
-  print("Memory regions:\n", printer);
+  print(printer, "Memory regions:\n");
   while (be_u64(begin->address) || be_u64(begin->size))
     print_reserved_region(begin++, printer);
 
-  print("==============================\n", printer);
+  print(printer, "==============================\n");
 }
 
 struct fdt_reserve_entry *get_reserved_mem(struct fdt_header *h) {
@@ -136,9 +136,9 @@ static void read_memory_device(struct fdt_header *hdr, struct memory **mem_head,
       break;
 
     default:
-      print("Invalid memory node property type ", printer);
+      print(printer, "Invalid memory node property type ");
       print_u32(type, printer);
-      print("\n", printer);
+      print(printer, "\n");
       panic("Bad property type");
     }
   }
@@ -179,9 +179,9 @@ struct parsed_fdt print_device_tree(struct fdt_header *hdr, sprinter *printer) {
         read_memory_device(hdr, &res.first_mem, &ptr, printer);
       } else {
         // ptr here contains the name of the device
-        print("Device Name: ", printer);
-        print(name, printer);
-        print("\n", printer);
+        print(printer, "Device Name: ");
+        print(printer, name);
+        print(printer, "\n");
       }
     } break;
     case FDT_NOP:
@@ -191,28 +191,33 @@ struct parsed_fdt print_device_tree(struct fdt_header *hdr, sprinter *printer) {
       struct fdt_prop_data fdt_data = chomp_prop_data(&ptr);
       const char *property_name = fdt_prop_name(hdr, &fdt_data);
 
-      print("--- ", printer);
-      print(property_name, printer);
-      print(": ", printer);
+      print(printer, "--- ");
+      print(printer, property_name);
+      print(printer, ": ");
 
-      be_u32_t *value = fdt_chomp_value(&fdt_data, &ptr);
-      for (; (char *)value != ptr.ptr; value++) {
-        hprint_u32(be_u32(*value), printer);
-        print(" ", printer);
+      if (streq("compatible", property_name) || streq("model", property_name)) {
+        const char *value = fdt_chomp_value(&fdt_data, &ptr);
+        printn(printer, value, be_u32(fdt_data.len));
+      } else {
+        be_u32_t *value = fdt_chomp_value(&fdt_data, &ptr);
+        for (; (char *)value != ptr.ptr; value++) {
+          hprint_u32(be_u32(*value), printer);
+          print(printer, " ");
+        }
       }
 
-      print("\n", printer);
+      print(printer, "\n");
     } break;
     default:
-      print("Type ", printer);
+      print(printer, "Type ");
       print_u32(type, printer);
-      print(" is unknown\n", printer);
-      panic("Invalid FDT property type\n");
+      print(printer, " is unknown\n");
+      panic("Invalid FDT property type %u\n", type);
     }
   }
 
 out:
-  print("<<<<-------->>>>\n", printer);
+  print(printer, "<<<<-------->>>>\n");
 
   return res;
 }

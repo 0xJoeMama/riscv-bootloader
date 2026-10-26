@@ -4,6 +4,8 @@
 #include "print.h"
 
 extern sprinter serial;
-void serial_init();
+// BYPASS CONCURRENCY SAFETY FOR THE SAKE OF EMERGENCY PRINTING
+// MEANT TO BE USED TO REPORT HIGH PRIORITY FAILURES LIKE PANIC
+extern sprinter emergency_serial;
 
 #endif // SERIAL_H

@@ -1,11 +1,86 @@
 #include "print.h"
-#include "assert.h"
-#include "atomic.h"
 #include "types.h"
 
-print_result print(const char *s, sprinter *printer) {
+#define OK_RES ((print_result){.type = PRINT_OK})
+#define RES(val) ((print_result){.type = val})
+
+print_result print(sprinter *printer, const char *s) {
   printer->print(s);
-  return (print_result){.type = PRINT_OK};
+  return OK_RES;
+}
+
+print_result printn(sprinter *printer, const char *s, usize n) {
+  if (printer->printn) {
+    printer->printn(s, n);
+    return OK_RES;
+  }
+
+  for (usize i = 0; i < n; i++)
+    printer->print_c(s[i]);
+
+  return OK_RES;
+}
+
+print_result vprintf(sprinter *printer, const char *s,
+                     __builtin_va_list *args) {
+  const char *last_checkpoint = s;
+
+  for (; *s; s++) {
+    if (*s != '%')
+      continue;
+
+    printn(printer, last_checkpoint, s - last_checkpoint);
+
+    s++;
+    char c = *s;
+    if (!c)
+      return RES(PRINT_INVALID_FORMAT);
+
+    switch (c) {
+    case 'u':
+      print_u32(__builtin_va_arg(*args, u32), printer);
+      break;
+
+    case 'U':
+      print_u64(__builtin_va_arg(*args, u64), printer);
+      break;
+
+    case 's':
+      print(printer, __builtin_va_arg(*args, const char *));
+      break;
+
+    case 'p':
+      hprint_u64((u64) __builtin_va_arg(*args, void *), printer);
+      break;
+
+    case 'x':
+      hprint_u32(__builtin_va_arg(*args, u32), printer);
+      break;
+
+    case 'X':
+      hprint_u64(__builtin_va_arg(*args, u64), printer);
+      break;
+
+    default:
+      return RES(PRINT_INVALID_FORMAT);
+    };
+
+    last_checkpoint = s + 1;
+  }
+
+  printn(printer, last_checkpoint, s - last_checkpoint);
+
+  return OK_RES;
+}
+
+print_result printf(sprinter *printer, const char *s, ...) {
+  __builtin_va_list va;
+  __builtin_va_start(va, s);
+
+  print_result res = vprintf(printer, s, &va);
+  __builtin_va_end(va);
+
+  return res;
 }
 
 print_result print_u64(u64 x, sprinter *printer) {
@@ -26,7 +101,7 @@ print_result print_u64(u64 x, sprinter *printer) {
   }
 
   // finally print
-  return print(s, printer);
+  return print(printer, s);
 }
 
 print_result print_u32(u32 x, sprinter *printer) {
@@ -47,7 +122,7 @@ print_result print_u32(u32 x, sprinter *printer) {
   }
 
   // finally print
-  return print(s, printer);
+  return print(printer, s);
 }
 
 static char hex_digit(u64 x) {
@@ -78,7 +153,7 @@ print_result hprint_u64(u64 x, sprinter *printer) {
     mask >>= 4;
   }
 
-  return print(s, printer);
+  return print(printer, s);
 }
 
 print_result hprint_u32(u32 x, sprinter *printer) {
@@ -93,33 +168,13 @@ print_result hprint_u32(u32 x, sprinter *printer) {
     i++;
   }
 
-  return print(s, printer);
+  return print(printer, s);
 }
 
 int print_prepare(sprinter *printer) {
-  int res;
-  if ((res = printer->prepare(printer->arg)))
-    return res;
-
-  while (!atomic_u32_cmpxchg_aq_rl(&printer->prepared, 1, 0))
-    ;
-
-  atomic_fence();
-
-  return 0;
+  return printer->prepare ? printer->prepare(printer->arg) : 0;
 }
 
 int print_flush(sprinter *printer) {
-  // TODO: instead of panicing on unprepared, please make sure you properly
-  // handle this
-  assert_eq(atomic_read(printer->prepared), 1);
-
-  int res;
-  printer->flush(printer->arg);
-
-  atomic_fence();
-  while (!atomic_u32_cmpxchg_aq_rl(&printer->prepared, 0, 1))
-    ;
-
-  return res;
+  return printer->flush ? printer->flush(printer->arg) : 0;
 }
