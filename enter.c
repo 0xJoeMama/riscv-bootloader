@@ -2,6 +2,7 @@
 #include "atomic.h"
 #include "fdt.h"
 #include "fw_dynamic.h"
+#include "pmp.h"
 #include "print.h"
 #include "serial.h"
 #include "std.h"
@@ -43,6 +44,13 @@ void *cpu_stacks;
 _Alignas(4096) static char stacks[4096 * 4];
 extern char stack[4096];
 
+void sanity_check_stack(void *stack) {
+  // stack sanity check
+  u64 sp;
+  asm volatile("mv %0, sp " : "=r"(sp));
+  assert(sp >= (u64)stack && sp < (u64)stack + 4096);
+}
+
 static void mem_init(struct memory *mem) {
   if (!mem)
     panic("Did not locate any usable memory regions");
@@ -54,12 +62,14 @@ static void mem_init(struct memory *mem) {
 
 extern never enter(u64 mhartid, struct fdt_header *device_tree,
                    fw_dynamic_info *fwdi) {
-  print_prepare(&serial);
+  // check that our sp values are within our alloted stack
+  sanity_check_stack(stack);
 
-  // stack sanity check
-  u64 sp;
-  asm volatile("mv %0, sp " : "=r"(sp));
-  assert(sp >= (u64)stack && sp < (u64)stack + 4096);
+  // protect the memory regions that we have been placed on
+  setup_pmp();
+
+  // TODO: currently this assumes the location of a UART interface
+  print_prepare(&serial);
 
   printf(&serial, "MakOS has been booted on hart %U\n", mhartid);
   print_fwdi(fwdi, &serial);
@@ -97,20 +107,14 @@ extern never enter(u64 mhartid, struct fdt_header *device_tree,
 }
 
 extern never enter_secondary(u64 mhartid) {
-  print_prepare(&serial);
-
   // stack sanity check
-  u64 sp;
-  void *stack = &stacks[mhartid * 4096];
-  asm volatile("mv %0, sp " : "=r"(sp));
-  assert(sp >= (u64)stack && sp < (u64)stack + 4096);
+  sanity_check_stack(&stacks[mhartid * 4096]);
 
+  print_prepare(&serial);
   printf(&serial, "Hart %U is now online\n", mhartid);
-
   print_flush(&serial);
 
   atomic_u32_add_aq_rl(&cpus_up, 1);
-  atomic_fence();
 
   spin();
 }
