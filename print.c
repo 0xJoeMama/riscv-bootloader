@@ -4,11 +4,6 @@
 #include "types.h"
 
 print_result print(const char *s, sprinter *printer) {
-  if (!atomic_read(printer->prepared))
-    return (print_result){
-        .type = PRINT_UNPREPARED,
-    };
-
   printer->print(s);
   return (print_result){.type = PRINT_OK};
 }

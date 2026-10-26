@@ -68,3 +68,21 @@ atomic_u64_add_aq_rl:
 atomic_u32_add_aq_rl:
   amoadd.w.aqrl a0, a1, (a0)
   ret
+
+# u32 atomic_u32_swap_aq(atomic_u32 *x, u32 value);
+# a0: x
+# a1: value
+# -> a0: value found at x during the swap
+.global atomic_u32_swap_aq
+atomic_u32_swap_aq:
+  amoswap.w.aq a0, a1, (a0)
+  ret
+
+# u32 atomic_u32_swap_rl(atomic_u32 *x, u32 value);
+# a0: x
+# a1: value
+# -> a0: value found at x during the swap
+.global atomic_u32_swap_rl
+atomic_u32_swap_rl:
+  amoswap.w.rl a0, a1, (a0)
+  ret

@@ -16,9 +16,7 @@ typedef struct {
 typedef struct {
   enum {
     PRINT_OK = 0,
-    PRINT_UNPREPARED = 1,
   } type;
-
 } print_result;
 
 int print_prepare(sprinter *);
