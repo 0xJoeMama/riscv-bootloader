@@ -1,4 +1,5 @@
 .extern see_start
+.extern see_rodata
 .extern see_data
 .extern see_data_end
 
@@ -25,8 +26,12 @@ protect_see:
   srli t0, t0, 10
   csrw pmpaddr0, t0
 
-  protect_range see_data, pmpaddr1, pmpcfg0, 8, 0x8d
-  protect_range see_data_end, pmpaddr2, pmpcfg0, 16, 0x8b
+  # protect the text "segment"
+  protect_range see_rodata, pmpaddr1, pmpcfg0, 8, 0x8d
+  # protect the rodata "segment"
+  protect_range see_data, pmpaddr2, pmpcfg0, 16, 0x89
+  # protect the data and bss "segments"
+  protect_range see_data_end, pmpaddr3, pmpcfg0, 24, 0x8b
   
   ret
 

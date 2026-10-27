@@ -20,4 +20,8 @@ void setup_pmp() {
   cfg = cfgs[2];
   printf(&emergency_serial, "Domain 2: Locked (%u), A (%u), RWX (%u%u%u)\n",
          cfg.locked, cfg.a, cfg.r, cfg.w, cfg.x);
+
+  cfg = cfgs[3];
+  printf(&emergency_serial, "Domain 3: Locked (%u), A (%u), RWX (%u%u%u)\n",
+         cfg.locked, cfg.a, cfg.r, cfg.w, cfg.x);
 }

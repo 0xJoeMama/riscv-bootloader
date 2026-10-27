@@ -1,7 +1,7 @@
 CROSS=riscv64-elf
 CC=$(CROSS)-gcc
 ARCH=rv64gc
-CFLAGS=-nostdlib -nodefaultlibs -nostdinc -nostartfiles -g3 -march=$(ARCH) -mabi=lp64 -mcmodel=medany -MMD -Wno-builtin-declaration-mismatch
+CFLAGS=-nostdlib -nodefaultlibs -nostdinc -nostartfiles -g3 -march=$(ARCH) -mabi=lp64 -mcmodel=medany -MMD -Wno-builtin-declaration-mismatch -O3
 ASFLAGS=-march=$(ARCH) -mabi=lp64
 AS=$(CROSS)-as
 LD=$(CROSS)-ld
@@ -12,6 +12,9 @@ all: sbi.elf
 
 sbi.elf: atomic.o spinlock.o serial.o pmp.o protect.o enter.o c_init.o print.o fw_dynamic.o endian.o string.o fdt.o memory.o
 	$(LD) $(LDFLAGS) $^ -o $@
+
+sbi.bin: sbi.elf
+	riscv64-elf-objcopy -O binary $^ $@
 
 %.o: %.s
 	$(AS) $(ASFLAGS) -o $@ $^
