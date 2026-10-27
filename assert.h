@@ -10,5 +10,6 @@
                 __FILE__, __LINE__))
 
 #define assert_eq(a, b) assert((a) == (b))
+#define assert_neq(a, b) assert((a) != (b))
 
 #endif // ASSERT_H

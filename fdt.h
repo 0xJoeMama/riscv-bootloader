@@ -34,6 +34,7 @@ struct fdt_reserve_entry {
   be_u64_t size;
 };
 
+#define FDT_MAX_DEPTH 32
 typedef struct {
   union {
     char *ptr;
@@ -41,8 +42,7 @@ typedef struct {
   };
 } fdt_ptr;
 
-struct fdt_reserve_entry *get_reserved_mem(struct fdt_header *);
-void print_mem_regions(struct fdt_reserve_entry *begin, sprinter *);
+struct fdt_reserve_entry *fdt_get_reserved(struct fdt_header *);
 
 const char *fdt_property_name(const struct fdt_header *hdr,
                               const struct fdt_prop_data *prop);
@@ -51,18 +51,17 @@ void *fdt_prop_value(struct fdt_prop_data *data, fdt_ptr *ptr);
 fdt_ptr mk_fdt_ptr(struct fdt_header *hdr);
 void fdt_goto_struct(struct fdt_header *hdr, fdt_ptr *ptr);
 
-// page placed at the beginning of memory regions to hold metadata about the
-// region
-struct memory {
-  _Alignas(4096) void *start; // TODO: this uses C11 style currently
-  usize len;
-  struct memory *next;
+typedef enum {
+  FDT_READ_PROPS = 1, // attempt to visit the properties of the current node
+  FDT_STOP = 2,       // stop visiting the tree and return
+} fdt_visit_flags;
+
+struct fdt_visitor {
+  fdt_visit_flags (*begin_node)(const char *name, void *);
+  void (*prop)(const char *property_name, void *value, usize value_len, void *);
+  fdt_visit_flags (*end_node)(void *);
 };
 
-struct parsed_fdt {
-  struct memory *first_mem;
-};
-
-struct parsed_fdt print_device_tree(struct fdt_header *, sprinter *);
+void fdt_visit(struct fdt_header *, struct fdt_visitor *visitor, void *arg);
 
 #endif // FDT_H

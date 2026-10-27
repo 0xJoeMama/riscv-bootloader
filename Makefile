@@ -10,7 +10,7 @@ LDFLAGS=-static  -Tlinker.ld
 
 all: sbi.elf
 
-sbi.elf: atomic.o spinlock.o serial.o pmp.o protect.o enter.o c_init.o print.o fw_dynamic.o endian.o string.o fdt.o 
+sbi.elf: atomic.o spinlock.o serial.o pmp.o protect.o enter.o c_init.o print.o fw_dynamic.o endian.o string.o fdt.o memory.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 %.o: %.s

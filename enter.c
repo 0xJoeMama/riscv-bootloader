@@ -2,6 +2,7 @@
 #include "atomic.h"
 #include "fdt.h"
 #include "fw_dynamic.h"
+#include "memory.h"
 #include "pmp.h"
 #include "print.h"
 #include "serial.h"
@@ -44,7 +45,7 @@ void *cpu_stacks;
 _Alignas(4096) static char stacks[4096 * 4];
 extern char stack[4096];
 
-void sanity_check_stack(void *stack) {
+static void sanity_check_stack(void *stack) {
   // stack sanity check
   u64 sp;
   asm volatile("mv %0, sp " : "=r"(sp));
@@ -66,26 +67,25 @@ extern never enter(u64 mhartid, struct fdt_header *device_tree,
   sanity_check_stack(stack);
 
   // protect the memory regions that we have been placed on
+  // this is used to save us FROM OURSELVES primarily and not from others
   setup_pmp();
 
   // TODO: currently this assumes the location of a UART interface
   print_prepare(&serial);
 
+  // let everyone know we are here
   printf(&serial, "MakOS has been booted on hart %U\n", mhartid);
   print_fwdi(fwdi, &serial);
 
   printf(&serial, "Device tree located at %p\n", device_tree);
 
+  // assert a valid device tree
   assert_eq(be_u32(device_tree->magic), 0xd00dfeed);
   assert_eq(be_u32(device_tree->version), 17);
 
-  u32 tree_sz = be_u32(device_tree->totalsize);
-
-  struct fdt_reserve_entry *rsv_mem = get_reserved_mem(device_tree);
-  print_mem_regions(rsv_mem, &serial);
-  struct parsed_fdt parsed = print_device_tree(device_tree, &serial);
-
-  mem_init(parsed.first_mem);
+  // we HUNGER for the memories
+  struct memory *mem = get_system_memory(device_tree);
+  mem_init(mem);
 
   atomic_u32_add_aq_rl(&cpus_up, 1);
 
