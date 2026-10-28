@@ -47,7 +47,7 @@ secondary_setup_stack:
   # offset from the beginning of cpu_stacks
   add sp, t0, t1
 
-  call enter_secondary
+  tail enter_secondary
 
 jump_to_c:
   # restore the saved registers
@@ -61,7 +61,7 @@ jump_to_c:
   addi t0, zero, 1
   slli t0, t0, 12
   add sp, sp, t0
-  call enter
+  tail enter
 
 .section .data
 .global stack

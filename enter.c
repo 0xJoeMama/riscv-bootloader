@@ -94,10 +94,9 @@ extern never enter(u64 mhartid, struct fdt_header *device_tree,
   // TODO: here we need to allocate the CPU stacks on the physical memory that
   // we parsed from the fdt, for now support at MOST 4 CPUs
   cpu_stacks = stacks;
-  atomic_fence(); // keep a store fence here to avoid reordering
+  atomic_fence("w, rw"); // keep a store fence here to avoid reordering
 
-  while (!atomic_u64_cmpxchg_aq_rl(&boot, 2, 0))
-    ;
+  atomic_u64_cmpxchg_aq_rl(&boot, 2, 0);
 
   while (!atomic_u32_cmpxchg_aq_rl(&cpus_up, 0, 4))
     ;

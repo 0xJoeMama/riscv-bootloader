@@ -18,6 +18,6 @@ atomic_int(u64);
 
 #define atomic_read(x) (x.__underlying)
 
-#define atomic_fence() asm __volatile__("fence")
+#define atomic_fence(s) asm __volatile__("fence " s)
 
 #endif // ATOMIC_H
