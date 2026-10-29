@@ -138,12 +138,12 @@ struct memory *get_system_memory(struct fdt_header *hdr) {
 
 static void *get_first_aligned_address(struct memory *mem, usize alignment) {
   usize align_mask = alignment - 1;
-  int already_aligned = ((usize)mem->start & align_mask) ? 1 : 0;
+  int not_aligned = ((usize)mem->start & align_mask) ? 1 : 0;
 
   void *old_start = mem->start;
   void *new_start;
 
-  if (!already_aligned) {
+  if (not_aligned) {
     new_start = (void *)((usize)old_start & ~align_mask) + alignment;
     if (new_start >= old_start + mem->len)
       return NULL;
