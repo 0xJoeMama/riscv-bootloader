@@ -38,6 +38,7 @@ void *fdt_chomp_value(struct fdt_prop_data *data, fdt_ptr *ptr) {
 fdt_ptr mk_fdt_ptr(struct fdt_header *hdr) {
   return (fdt_ptr){
       .ptr = (char *)hdr,
+      .depth = 0,
   };
 }
 
@@ -55,7 +56,11 @@ void fdt_visit(struct fdt_header *hdr, struct fdt_visitor *visitor, void *arg) {
   u32 type;
 
   int visit_props = 0;
+  int recurse = 1;
+  int non_recurse_depth = ptr.depth;
   while ((type = chomp_be_u32(&ptr)) != FDT_END) {
+    int matches_depth = recurse || ptr.depth == non_recurse_depth;
+
     switch (type) {
     case FDT_BEGIN_NODE: {
       char *name = ptr.ptr;
@@ -72,23 +77,36 @@ void fdt_visit(struct fdt_header *hdr, struct fdt_visitor *visitor, void *arg) {
         }
       }
 
-    done: {
-      fdt_visit_flags flags = visitor->begin_node(name, arg);
-      visit_props = flags & FDT_READ_PROPS;
-    }
+    done:
+      ptr.depth++;
+
+      if (recurse) {
+        fdt_visit_flags flags = visitor->begin_node(name, arg);
+        visit_props = flags & FDT_READ_PROPS;
+
+        if (!(flags & FDT_RECURSE)) {
+          non_recurse_depth = ptr.depth;
+          recurse = 0;
+        }
+      }
     } break;
     case FDT_NOP:
       continue;
-    case FDT_END_NODE:
-      if (visitor->end_node && visitor->end_node(arg) == FDT_STOP)
+    case FDT_END_NODE: {
+      if (matches_depth && visitor->end_node &&
+          visitor->end_node(arg) == FDT_STOP)
         return;
-      continue;
+
+      if (!recurse)
+        recurse = ptr.depth == non_recurse_depth;
+
+      ptr.depth--;
+    } break;
     case FDT_PROP: {
       struct fdt_prop_data fdt_data = chomp_prop_data(&ptr);
       const char *property_name = fdt_prop_name(hdr, &fdt_data);
       void *value = fdt_chomp_value(&fdt_data, &ptr);
-
-      if (visit_props && visitor->prop)
+      if (visit_props && matches_depth && visitor->prop)
         visitor->prop(property_name, value, be_u32(fdt_data.len), arg);
     } break;
     default:

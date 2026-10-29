@@ -1,5 +1,6 @@
 #include "assert.h"
 #include "atomic.h"
+#include "cpu.h"
 #include "fdt.h"
 #include "fw_dynamic.h"
 #include "memory.h"
@@ -40,9 +41,6 @@ never panic(const char *s, ...) {
 atomic_u64 boot = {1};
 atomic_u32 cpus_up = {0};
 
-void *cpu_stacks;
-
-_Alignas(4096) static char stacks[4096 * 4];
 extern char stack[4096];
 
 static void sanity_check_stack(void *stack) {
@@ -87,14 +85,12 @@ extern never enter(u64 mhartid, struct fdt_header *device_tree,
   struct memory *mem = get_system_memory(device_tree);
   mem_init(mem);
 
+  struct cpu *cpus = get_system_cpus(device_tree, mem);
+  usize cpus_cnt = setup_cpus(cpus, mem);
+
   atomic_u32_add_aq_rl(&cpus_up, 1);
 
   print_flush(&serial);
-
-  // TODO: here we need to allocate the CPU stacks on the physical memory that
-  // we parsed from the fdt, for now support at MOST 4 CPUs
-  cpu_stacks = stacks;
-  atomic_fence("w, rw"); // keep a store fence here to avoid reordering
 
   atomic_u64_cmpxchg_aq_rl(&boot, 2, 0);
 
@@ -106,11 +102,13 @@ extern never enter(u64 mhartid, struct fdt_header *device_tree,
 }
 
 extern never enter_secondary(u64 mhartid) {
+  char *stack_addr = &((char *)cpu_stacks)[mhartid * 4096];
   // stack sanity check
-  sanity_check_stack(&stacks[mhartid * 4096]);
+  sanity_check_stack(stack_addr);
+
 
   print_prepare(&serial);
-  printf(&serial, "Hart %U is now online\n", mhartid);
+  printf(&serial, "Hart %U is now online on stack %p\n", mhartid, stack_addr);
   print_flush(&serial);
 
   atomic_u32_add_aq_rl(&cpus_up, 1);

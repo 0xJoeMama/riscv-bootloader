@@ -59,7 +59,8 @@ static void add_memory_region(struct memory **mem_head, be_u32_t *region,
   void *ptr = (void *)start;
 
   struct reserved_region reserved = get_reserved_region(ptr, len, res);
-  // if no reserved region was found, it means we are safe to just claim the whole region
+  // if no reserved region was found, it means we are safe to just claim the
+  // whole region
   if (reserved.start == reserved.end)
     return place_meta(mem_head, ptr, len);
 
@@ -79,10 +80,12 @@ struct memory_parser {
 };
 
 static fdt_visit_flags memory_begin_node(const char *name, void *arg) {
-  if (!strstarts(name, "memory@"))
+  if (streq(name, FDT_ROOT))
+    return FDT_RECURSE;
+  else if (strstarts(name, "memory@"))
+    return FDT_READ_PROPS;
+  else
     return 0;
-
-  return FDT_READ_PROPS;
 }
 
 static void memory_prop(const char *name, void *value, usize value_len,
@@ -131,4 +134,40 @@ struct memory *get_system_memory(struct fdt_header *hdr) {
 
   assert_neq(parser.prev, NULL);
   return parser.prev;
+}
+
+static void *get_first_aligned_address(struct memory *mem, usize alignment) {
+  usize align_mask = alignment - 1;
+  int already_aligned = ((usize)mem->start & align_mask) ? 1 : 0;
+
+  void *old_start = mem->start;
+  void *new_start;
+
+  if (!already_aligned) {
+    new_start = (void *)((usize)old_start & ~align_mask) + alignment;
+    if (new_start >= old_start + mem->len)
+      return NULL;
+  } else {
+    new_start = old_start;
+  }
+
+  mem->start = new_start;
+  mem->len -= new_start - old_start;
+
+  return new_start;
+}
+
+void *mem_alloc_perma_object(struct memory *mem, usize len, usize alignment) {
+  for (struct memory *m = mem; m; m = m->next) {
+    void *start;
+    if ((start = get_first_aligned_address(m, alignment))) {
+      void *res = start;
+      m->start += len;
+      m->len -= len;
+
+      return res;
+    }
+  }
+
+  return NULL;
 }

@@ -40,6 +40,7 @@ typedef struct {
     char *ptr;
     void *gen_ptr;
   };
+  usize depth;
 } fdt_ptr;
 
 struct fdt_reserve_entry *fdt_get_reserved(struct fdt_header *);
@@ -54,6 +55,7 @@ void fdt_goto_struct(struct fdt_header *hdr, fdt_ptr *ptr);
 typedef enum {
   FDT_READ_PROPS = 1, // attempt to visit the properties of the current node
   FDT_STOP = 2,       // stop visiting the tree and return
+  FDT_RECURSE = 4,    // attempt to visit child nodes of this node
 } fdt_visit_flags;
 
 struct fdt_visitor {
@@ -63,5 +65,7 @@ struct fdt_visitor {
 };
 
 void fdt_visit(struct fdt_header *, struct fdt_visitor *visitor, void *arg);
+
+#define FDT_ROOT ""
 
 #endif // FDT_H
